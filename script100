@@ -1,0 +1,58 @@
+#!/bin/bash
+
+ 
+
+# Check if required parameters are provided
+if [ $# -ne 2 ]; then
+    echo "Usage: $0 <moduleName> <branchType>"
+    exit 1
+fi
+
+ 
+
+# Assign parameters to variables
+moduleName=$1
+branchType=$2
+moduleNameGit="$1.git"
+logFile="/home/jenkins/Automerging/deleteTag.log"
+
+ 
+
+# Function to log messages
+log_message() {
+    echo "$(date +'%Y-%m-%d %H:%M:%S') - $1" >> "$logFile"
+}
+
+ 
+
+# Function to handle errors
+handle_error() {
+    log_message "ERROR: $1"
+    exit 1
+}
+
+ 
+
+# Function to identify branches older than 100 days
+identify_old_branches() {
+    log_message "Identifying branches older than 100 days"
+    cd "/home/jenkins/Automerging/gits/$moduleName" || handle_error "Failed to change directory"
+    today=$(date +%s)
+    hundred_days_ago=$((today - 8640000)) # 86400 seconds per day
+    old_branches=$(git for-each-ref --format='%(refname:short) %(committerdate:unix)' refs/heads/ | while read branch date; do if [ "$branch" = "$branchType"/* ] && [ "$date" -lt "$hundred_days_ago" ]; then echo "$branch"; fi; done)
+    if [ -n "$old_branches" ]; then
+        log_message "Old branches:"
+        log_message "$old_branches"
+    else
+        log_message "No branches older than 100 days found"
+    fi
+}
+
+ 
+
+# Function to simulate tag creation and branch deletion (dry run)
+dry_run() {
+    log_message "Performing dry run..."
+    identify_old_branches
+    log_message "Dry run completed."
+}
